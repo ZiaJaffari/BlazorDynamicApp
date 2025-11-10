@@ -1,0 +1,23 @@
+﻿@inherits LayoutComponentBase
+
+<div>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                Admin Panel
+            </span>
+            <div class="navbar-nav flex-row">
+                <a class="nav-link text-light me-3" href="/admin">
+                    Manage Data
+                </a>
+                <a class="nav-link text-light" href="/">
+                    User View
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        @Body
+    </div>
+</div>

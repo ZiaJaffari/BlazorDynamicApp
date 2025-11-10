@@ -1,0 +1,462 @@
+﻿@page "/dynamic-data"
+@using BlazorDynamicApp.Data.Models
+@using BlazorDynamicApp.Data.Services
+@inject IDynamicDataService DataService
+@rendermode InteractiveServer
+
+<PageTitle>Dynamic Data Management</PageTitle>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <h1 class="display-6 mb-4">Dynamic Data Management</h1>
+
+            <!-- Action Buttons -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <button class="btn btn-success" @onclick="ShowAddModal">
+                        <i class="oi oi-plus"></i> Add New
+                    </button>
+                    <button class="btn btn-outline-secondary ms-2" @onclick="RefreshData">
+                        <i class="oi oi-reload"></i> Refresh
+                    </button>
+                </div>
+                <div class="d-flex align-items-center">
+                    <input type="text" class="form-control me-2" placeholder="Search..." @bind="searchTerm" @oninput="OnSearch" />
+                    <select class="form-select" style="width: 200px;" @bind="selectedCategory">
+                        <option value="">All Categories</option>
+                        @foreach (var category in categories)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="card">
+                <div class="card-body">
+                    @if (entities is null)
+                    {
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p class="mt-2">Loading data...</p>
+                        </div>
+                    }
+                    else if (!filteredEntities.Any())
+                    {
+                        <div class="text-center py-4">
+                            <p class="text-muted">No records found.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Name</th>
+                                        <th>Description</th>
+                                        <th>Category</th>
+                                        <th>Price</th>
+                                        <th>Quantity</th>
+                                        <th>Status</th>
+                                        <th>Created Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var entity in filteredEntities)
+                                    {
+                                        <tr>
+                                            <td>@entity.Id</td>
+                                            <td>
+                                                <strong>@entity.Name</strong>
+                                                @if (!entity.IsActive)
+                                                {
+                                                    <span class="badge bg-warning ms-1">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>@entity.Description</td>
+                                            <td>
+                                                <span class="badge bg-info">@entity.Category</span>
+                                            </td>
+                                            <td>@entity.Price.ToString("C")</td>
+                                            <td>
+                                                <span class="@GetQuantityClass(entity.Quantity)">@entity.Quantity</span>
+                                            </td>
+                                            <td>
+                                                @if (entity.IsActive)
+                                                {
+                                                    <span class="badge bg-success">Active</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                }
+                                            </td>
+                                            <td>@entity.CreatedDate.ToString("MMM dd, yyyy")</td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm">
+                                                    <button class="btn btn-outline-primary" @onclick="() => ShowEditModal(entity)" title="Edit">
+                                                        <i class="oi oi-pencil"></i>
+                                                    </button>
+                                                    <button class="btn btn-outline-danger" @onclick="() => ShowDeleteModal(entity)" title="Delete">
+                                                        <i class="oi oi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Modal -->
+@if (showModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">@(isEditing ? "Edit Record" : "Add New Record")</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Name *</label>
+                            <input type="text" class="form-control" @bind="currentEntity.Name" />
+                            @if (showValidation && string.IsNullOrWhiteSpace(currentEntity.Name))
+                            {
+                                <small class="text-danger">Name is required</small>
+                            }
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category *</label>
+                            <input type="text" class="form-control" @bind="currentEntity.Category" list="categoryList" />
+                            <datalist id="categoryList">
+                                @foreach (var category in categories)
+                                {
+                                    <option value="@category">@category</option>
+                                }
+                            </datalist>
+                            @if (showValidation && string.IsNullOrWhiteSpace(currentEntity.Category))
+                            {
+                                <small class="text-danger">Category is required</small>
+                            }
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Price *</label>
+                            <input type="number" step="0.01" class="form-control" @bind="currentEntity.Price" />
+                            @if (showValidation && currentEntity.Price <= 0)
+                            {
+                                <small class="text-danger">Price must be greater than 0</small>
+                            }
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Quantity *</label>
+                            <input type="number" class="form-control" @bind="currentEntity.Quantity" />
+                            @if (showValidation && currentEntity.Quantity < 0)
+                            {
+                                <small class="text-danger">Quantity cannot be negative</small>
+                            }
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" rows="3" @bind="currentEntity.Description"></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" @bind="currentEntity.IsActive" />
+                        <label class="form-check-label">Active</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="SaveEntity">
+                        @(isEditing ? "Update" : "Create")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+@if (showDeleteModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5)">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title text-danger">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CloseDeleteModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@entityToDelete?.Name</strong>?</p>
+                    <p class="text-muted">This action cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Toast Notification -->
+@if (showToast)
+{
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+        <div class="toast show" role="alert">
+            <div class="toast-header">
+                <strong class="me-auto">@toastTitle</strong>
+                <button type="button" class="btn-close" @onclick="HideToast"></button>
+            </div>
+            <div class="toast-body">
+                @toastMessage
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DynamicEntity>? entities;
+    private List<DynamicEntity> filteredEntities = [];
+    private List<string> categories = [];
+    private DynamicEntity currentEntity = new();
+    private DynamicEntity? entityToDelete;
+
+    private bool showModal;
+    private bool showDeleteModal;
+    private bool isEditing;
+    private bool showToast;
+    private bool showValidation;
+
+    private string searchTerm = string.Empty;
+    private string selectedCategory = string.Empty;
+    private string toastTitle = string.Empty;
+    private string toastMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        try
+        {
+            entities = await DataService.GetAllAsync();
+            categories = await DataService.GetCategoriesAsync();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Error", $"Failed to load data: {ex.Message}");
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        if (entities is null) return;
+
+        var query = entities.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            query = query.Where(e =>
+                e.Name.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||
+                e.Category.Contains(searchTerm, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (!string.IsNullOrWhiteSpace(selectedCategory))
+        {
+            query = query.Where(e => e.Category == selectedCategory);
+        }
+
+        filteredEntities = query.ToList();
+        StateHasChanged();
+    }
+
+    private void OnSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        ApplyFilters();
+    }
+
+    private void ShowAddModal()
+    {
+        Console.WriteLine("ShowAddModal called");
+        currentEntity = new();
+        isEditing = false;
+        showModal = true;
+        showValidation = false;
+        StateHasChanged();
+    }
+
+    private void ShowEditModal(DynamicEntity entity)
+    {
+        Console.WriteLine("ShowEditModal called");
+        currentEntity = new()
+        {
+            Id = entity.Id,
+            Name = entity.Name,
+            Description = entity.Description,
+            Category = entity.Category,
+            Price = entity.Price,
+            Quantity = entity.Quantity,
+            IsActive = entity.IsActive
+        };
+        isEditing = true;
+        showModal = true;
+        showValidation = false;
+        StateHasChanged();
+    }
+
+    private void CloseModal()
+    {
+        Console.WriteLine("CloseModal called");
+        showModal = false;
+        showValidation = false;
+        currentEntity = new();
+        StateHasChanged();
+    }
+
+    private async Task SaveEntity()
+    {
+        Console.WriteLine("SaveEntity called");
+        showValidation = true;
+
+        if (!IsFormValid())
+        {
+            ShowToast("Validation Error", "Please fill all required fields correctly");
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            if (isEditing)
+            {
+                await DataService.UpdateAsync(currentEntity);
+                ShowToast("Success", "Record updated successfully!");
+            }
+            else
+            {
+                await DataService.CreateAsync(currentEntity);
+                ShowToast("Success", "Record created successfully!");
+            }
+
+            await LoadData();
+            CloseModal();
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Error", $"Failed to save record: {ex.Message}");
+        }
+    }
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrWhiteSpace(currentEntity.Name) &&
+               !string.IsNullOrWhiteSpace(currentEntity.Category) &&
+               currentEntity.Price > 0 &&
+               currentEntity.Quantity >= 0;
+    }
+
+    private void ShowDeleteModal(DynamicEntity entity)
+    {
+        Console.WriteLine("ShowDeleteModal called");
+        entityToDelete = entity;
+        showDeleteModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseDeleteModal()
+    {
+        Console.WriteLine("CloseDeleteModal called");
+        showDeleteModal = false;
+        entityToDelete = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete()
+    {
+        Console.WriteLine("ConfirmDelete called");
+        if (entityToDelete is null) return;
+
+        try
+        {
+            var result = await DataService.DeleteAsync(entityToDelete.Id);
+            if (result)
+            {
+                ShowToast("Success", "Record deleted successfully!");
+                await LoadData();
+            }
+            else
+            {
+                ShowToast("Error", "Record not found!");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowToast("Error", $"Failed to delete record: {ex.Message}");
+        }
+        finally
+        {
+            CloseDeleteModal();
+        }
+    }
+
+    private async Task RefreshData()
+    {
+        Console.WriteLine("RefreshData called");
+        await LoadData();
+        ShowToast("Refreshed", "Data refreshed successfully!");
+    }
+
+    private void ShowToast(string title, string message)
+    {
+        Console.WriteLine($"ShowToast: {title} - {message}");
+        toastTitle = title;
+        toastMessage = message;
+        showToast = true;
+        StateHasChanged();
+
+        // Auto-hide after 5 seconds
+        _ = Task.Delay(5000).ContinueWith(_ =>
+        {
+            showToast = false;
+            InvokeAsync(StateHasChanged);
+        });
+    }
+
+    private void HideToast()
+    {
+        showToast = false;
+        StateHasChanged();
+    }
+
+    private static string GetQuantityClass(int quantity) => quantity switch
+    {
+        0 => "text-danger fw-bold",
+        < 10 => "text-warning fw-bold",
+        _ => "text-success"
+    };
+}
