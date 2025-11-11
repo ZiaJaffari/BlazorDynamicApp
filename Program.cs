@@ -54,11 +54,31 @@ static async Task InitializeDatabaseAsync(WebApplication app)
         {
             DynamicEntity[] entities =
             [
-                new() { Name = "Laptop", Description = "High-performance gaming laptop", Category = "Electronics", Price = 1200.00m, Quantity = 10, IsActive = true },
-                new() { Name = "Office Chair", Description = "Ergonomic office chair", Category = "Furniture", Price = 250.00m, Quantity = 15, IsActive = true },
-                new() { Name = "Notebook", Description = "Professional notebook set", Category = "Stationery", Price = 15.99m, Quantity = 100, IsActive = true },
-                new() { Name = "Coffee Maker", Description = "Automatic coffee machine", Category = "Appliances", Price = 89.99m, Quantity = 20, IsActive = true },
-                new() { Name = "Desk Lamp", Description = "LED desk lamp with adjustable brightness", Category = "Lighting", Price = 35.50m, Quantity = 30, IsActive = true }
+                new()
+                {
+                    Name = "Laptop", Description = "High-performance gaming laptop", Category = "Electronics",
+                    Price = 1200.00m, Quantity = 10, IsActive = true
+                },
+                new()
+                {
+                    Name = "Office Chair", Description = "Ergonomic office chair", Category = "Furniture",
+                    Price = 250.00m, Quantity = 15, IsActive = true
+                },
+                new()
+                {
+                    Name = "Notebook", Description = "Professional notebook set", Category = "Stationery",
+                    Price = 15.99m, Quantity = 100, IsActive = true
+                },
+                new()
+                {
+                    Name = "Coffee Maker", Description = "Automatic coffee machine", Category = "Appliances",
+                    Price = 89.99m, Quantity = 20, IsActive = true
+                },
+                new()
+                {
+                    Name = "Desk Lamp", Description = "LED desk lamp with adjustable brightness", Category = "Lighting",
+                    Price = 35.50m, Quantity = 30, IsActive = true
+                }
             ];
 
             await context.DynamicEntities.AddRangeAsync(entities);
@@ -72,3 +92,5 @@ static async Task InitializeDatabaseAsync(WebApplication app)
         Console.WriteLine($"An error occurred while initializing the database: {ex.Message}");
     }
 }
+
+// This Project is a test project for School of Shams 
